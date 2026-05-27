@@ -8,7 +8,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
-export const VALID_SPECIES = ['dog', 'cat', 'bird', 'rabbit', 'other'] as const
+export const VALID_SPECIES = ['perro', 'gato', 'ave', 'conejo', 'otro'] as const
 export type Species = (typeof VALID_SPECIES)[number]
 
 export type PetInput = {

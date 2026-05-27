@@ -23,11 +23,11 @@ import {
 } from '@/components/ui/select'
 
 const SPECIES_OPTIONS = [
-  { value: 'dog', label: 'Perro' },
-  { value: 'cat', label: 'Gato' },
-  { value: 'bird', label: 'Ave' },
-  { value: 'rabbit', label: 'Conejo' },
-  { value: 'other', label: 'Otro' },
+  { value: 'perro', label: 'Perro' },
+  { value: 'gato', label: 'Gato' },
+  { value: 'ave', label: 'Ave' },
+  { value: 'conejo', label: 'Conejo' },
+  { value: 'otro', label: 'Otro' },
 ]
 
 type Props = {

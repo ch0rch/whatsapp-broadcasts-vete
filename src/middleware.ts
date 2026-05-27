@@ -11,6 +11,12 @@ const BYPASS_PREFIXES = [
   '/api/health',
 ]
 
+// API route prefixes that should return 401 JSON (not redirect to /login)
+// Excludes bypass prefixes above (those never reach auth check)
+function isApiRoute(pathname: string): boolean {
+  return pathname.startsWith('/api/')
+}
+
 function isBypassRoute(pathname: string): boolean {
   return BYPASS_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 }
@@ -59,8 +65,13 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Unauthenticated user hitting a protected route → redirect to /login
+  // Unauthenticated user hitting a protected route
   if (!user && !isPublicRoute(pathname)) {
+    // API routes: return 401 JSON (not a redirect — API callers can't follow HTML redirects)
+    if (isApiRoute(pathname)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    // Page routes: redirect to /login with ?next= for post-login return
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     loginUrl.searchParams.set('next', pathname)

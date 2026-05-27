@@ -47,7 +47,7 @@ create table pets (
   clinic_id         uuid not null references clinics on delete cascade,
   customer_id       uuid not null references customers on delete cascade,
   name              text not null,
-  species           text not null check (species in ('dog','cat','bird','other')),
+  species           text not null check (species in ('perro','gato','ave','conejo','otro')),
   breed             text,
   birth_date        date,
   weight_kg         numeric(5,2),

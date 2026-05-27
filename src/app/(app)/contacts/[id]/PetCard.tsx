@@ -14,19 +14,19 @@ type Pet = {
 }
 
 const SPECIES_LABELS: Record<string, string> = {
-  dog: 'Perro',
-  cat: 'Gato',
-  bird: 'Ave',
-  rabbit: 'Conejo',
-  other: 'Otro',
+  perro: 'Perro',
+  gato: 'Gato',
+  ave: 'Ave',
+  conejo: 'Conejo',
+  otro: 'Otro',
 }
 
 const SPECIES_EMOJI: Record<string, string> = {
-  dog: '🐕',
-  cat: '🐈',
-  bird: '🦜',
-  rabbit: '🐇',
-  other: '🐾',
+  perro: '🐕',
+  gato: '🐈',
+  ave: '🦜',
+  conejo: '🐇',
+  otro: '🐾',
 }
 
 function formatDate(dateStr: string | null): string | null {

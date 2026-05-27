@@ -14,7 +14,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { kapsoApi } from '@/lib/kapso-api'
 import { matchCustomers } from '@/server/segments/builder'
-import { getSegment } from '@/server/segments/repo'
 import {
   getClinicCapData,
   updateCampaignAfterHydrate,
@@ -72,8 +71,6 @@ export async function hydrateRecipients(
   }
 
   const { monthly_message_limit, messages_used_this_month, first_full_send_at } = capData
-  const projectedUsage = messages_used_this_month + customers.length
-
   // 3. Pilot cap
   if (campaign.pilot) {
     // Shuffle + limit 100

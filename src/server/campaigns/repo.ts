@@ -112,7 +112,7 @@ export async function updateCampaignAfterHydrate(
 }
 
 /** Mark campaign as failed. */
-export async function markCampaignFailed(id: string, reason?: string): Promise<void> {
+export async function markCampaignFailed(id: string): Promise<void> {
   const admin = createAdminClient()
   await admin
     .from('campaigns')

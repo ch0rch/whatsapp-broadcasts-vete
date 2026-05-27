@@ -3,10 +3,13 @@
 /**
  * CSVImporter — 3-step import wizard
  *
- * Step 1: Upload CSV file → parse it with the existing csv-parser
- * Step 2: Column mapping → assign columns to: name | phone | (ignored)
- *         Species/pet fields are skipped in this MVP (contact import only)
- * Step 3: Import results → shows { imported, skipped_duplicates, skipped_invalid }
+ * Step 1: Upload CSV file → parse client-side
+ * Step 2: Column mapping → assign columns to target fields:
+ *         Required: phone
+ *         Optional: name
+ *         Pet fields (optional): pet_name, species, breed, birth_date, weight_kg, pet_notes
+ *         A pet row is created only when BOTH pet_name AND species are mapped AND present.
+ * Step 3: Import results → shows counters + error list
  */
 
 import { useState, useTransition } from 'react'
@@ -20,15 +23,21 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { importContacts } from '@/app/actions/importContacts'
+import type { ImportResult } from '@/app/actions/importContacts'
 
-type ColumnRole = 'phone' | 'name' | 'ignore'
+type ColumnRole =
+  | 'phone'
+  | 'name'
+  | 'pet_name'
+  | 'species'
+  | 'breed'
+  | 'birth_date'
+  | 'weight_kg'
+  | 'pet_notes'
+  | 'ignore'
 
-type ImportResult = {
-  imported: number
-  skipped_duplicates: number
-  skipped_invalid: number
-  errors: string[]
-}
+/** Roles that can only be assigned to one column at a time. */
+const UNIQUE_ROLES: ColumnRole[] = ['phone', 'name', 'pet_name', 'species', 'breed', 'birth_date', 'weight_kg', 'pet_notes']
 
 function parseRawCSV(text: string): { headers: string[]; rows: string[][] } {
   const lines = text.trim().split(/\r?\n/)
@@ -93,8 +102,8 @@ export default function CSVImporter() {
   const handleRoleChange = (index: number, role: ColumnRole) => {
     setColumnRoles((prev) => {
       const next = [...prev]
-      // Only allow one 'phone' column and one 'name' column
-      if (role === 'phone' || role === 'name') {
+      // Each unique role can only be assigned to one column — clear any previous assignment
+      if (UNIQUE_ROLES.includes(role)) {
         for (let i = 0; i < next.length; i++) {
           if (next[i] === role) next[i] = 'ignore'
         }
@@ -105,7 +114,11 @@ export default function CSVImporter() {
   }
 
   const phoneColumnIndex = columnRoles.indexOf('phone')
-  const nameColumnIndex = columnRoles.indexOf('name')
+  const petNameColumnIndex = columnRoles.indexOf('pet_name')
+  const speciesColumnIndex = columnRoles.indexOf('species')
+
+  const petColumnsPartiallyMapped =
+    (petNameColumnIndex >= 0) !== (speciesColumnIndex >= 0)
 
   const handleImport = () => {
     if (phoneColumnIndex === -1) {
@@ -113,12 +126,29 @@ export default function CSVImporter() {
       return
     }
 
+    if (petColumnsPartiallyMapped) {
+      setError('Para importar mascotas necesitás mapear TANTO "Nombre de la mascota" COMO "Especie"')
+      return
+    }
+
     startTransition(async () => {
+      const nameIdx = columnRoles.indexOf('name')
+      const breedIdx = columnRoles.indexOf('breed')
+      const birthDateIdx = columnRoles.indexOf('birth_date')
+      const weightKgIdx = columnRoles.indexOf('weight_kg')
+      const petNotesIdx = columnRoles.indexOf('pet_notes')
+
       const importRows = rows
         .filter((row) => row[phoneColumnIndex]?.trim())
         .map((row) => ({
           raw_phone: row[phoneColumnIndex] ?? '',
-          name: nameColumnIndex >= 0 ? (row[nameColumnIndex] ?? undefined) : undefined,
+          name: nameIdx >= 0 ? (row[nameIdx]?.trim() || undefined) : undefined,
+          pet_name: petNameColumnIndex >= 0 ? (row[petNameColumnIndex]?.trim() || undefined) : undefined,
+          species: speciesColumnIndex >= 0 ? (row[speciesColumnIndex]?.trim() || undefined) : undefined,
+          breed: breedIdx >= 0 ? (row[breedIdx]?.trim() || undefined) : undefined,
+          birth_date: birthDateIdx >= 0 ? (row[birthDateIdx]?.trim() || undefined) : undefined,
+          weight_kg: weightKgIdx >= 0 ? (row[weightKgIdx]?.trim() || undefined) : undefined,
+          pet_notes: petNotesIdx >= 0 ? (row[petNotesIdx]?.trim() || undefined) : undefined,
         }))
 
       if (importRows.length === 0) {
@@ -136,8 +166,6 @@ export default function CSVImporter() {
       }
     })
   }
-
-  // ── Step 3: results ──────────────────────────────────────────────────────
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -203,6 +231,10 @@ export default function CSVImporter() {
             Asigná el rol de cada columna. Al menos <strong>Teléfono</strong> es obligatorio.
           </p>
 
+          <div className="rounded-md border bg-blue-50/50 px-4 py-3 text-sm text-blue-800">
+            Si mapeás <strong>Nombre de la mascota</strong> y <strong>Especie</strong>, también cargamos la mascota del cliente. Los dos son necesarios para crear la mascota.
+          </div>
+
           <div className="rounded-md border overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
@@ -224,13 +256,19 @@ export default function CSVImporter() {
                         value={columnRoles[i]}
                         onValueChange={(v) => handleRoleChange(i, v as ColumnRole)}
                       >
-                        <SelectTrigger className="w-36">
+                        <SelectTrigger className="w-52">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="ignore">Ignorar</SelectItem>
                           <SelectItem value="phone">Teléfono</SelectItem>
-                          <SelectItem value="name">Nombre</SelectItem>
+                          <SelectItem value="name">Nombre del contacto</SelectItem>
+                          <SelectItem value="pet_name">Nombre de la mascota</SelectItem>
+                          <SelectItem value="species">Especie (perro/gato/...)</SelectItem>
+                          <SelectItem value="breed">Raza</SelectItem>
+                          <SelectItem value="birth_date">Fecha de nacimiento</SelectItem>
+                          <SelectItem value="weight_kg">Peso (kg)</SelectItem>
+                          <SelectItem value="pet_notes">Notas de la mascota</SelectItem>
                         </SelectContent>
                       </Select>
                     </td>
@@ -243,13 +281,25 @@ export default function CSVImporter() {
           <div className="text-sm text-muted-foreground">
             Se van a procesar <strong>{rows.filter((r) => r[phoneColumnIndex]?.trim()).length}</strong> filas
             con teléfono{phoneColumnIndex === -1 ? ' (ninguna columna asignada aún)' : ''}.
+            {petNameColumnIndex >= 0 && speciesColumnIndex >= 0 && (
+              <> Las filas con nombre de mascota y especie van a crear también la mascota del cliente.</>
+            )}
           </div>
+
+          {petColumnsPartiallyMapped && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Para importar mascotas necesitás mapear <strong>ambos</strong>: &ldquo;Nombre de la mascota&rdquo; y &ldquo;Especie&rdquo;.
+            </div>
+          )}
 
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setStep(1)}>
               Volver
             </Button>
-            <Button onClick={handleImport} disabled={isPending || phoneColumnIndex === -1}>
+            <Button
+              onClick={handleImport}
+              disabled={isPending || phoneColumnIndex === -1 || petColumnsPartiallyMapped}
+            >
               {isPending ? 'Importando...' : 'Iniciar importación'}
             </Button>
           </div>
@@ -259,18 +309,30 @@ export default function CSVImporter() {
       {/* Step 3: Results */}
       {step === 3 && result && (
         <div className="space-y-6">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="rounded-lg border p-4 text-center">
-              <p className="text-3xl font-bold text-green-600">{result.imported}</p>
-              <p className="text-sm text-muted-foreground mt-1">Importados</p>
+              <p className="text-3xl font-bold text-green-600">{result.customers_imported}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Importamos {result.customers_imported} contactos nuevos
+              </p>
             </div>
             <div className="rounded-lg border p-4 text-center">
-              <p className="text-3xl font-bold text-amber-600">{result.skipped_duplicates}</p>
-              <p className="text-sm text-muted-foreground mt-1">Duplicados omitidos</p>
+              <p className="text-3xl font-bold text-amber-600">{result.customers_skipped_duplicate}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {result.customers_skipped_duplicate} ya estaban en la base
+              </p>
             </div>
             <div className="rounded-lg border p-4 text-center">
-              <p className="text-3xl font-bold text-muted-foreground">{result.skipped_invalid}</p>
-              <p className="text-sm text-muted-foreground mt-1">Inválidos omitidos</p>
+              <p className="text-3xl font-bold text-blue-600">{result.pets_imported}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Cargamos {result.pets_imported} mascotas
+              </p>
+            </div>
+            <div className="rounded-lg border p-4 text-center">
+              <p className="text-3xl font-bold text-muted-foreground">{result.rows_skipped_invalid}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {result.rows_skipped_invalid} filas con datos inválidos (revisá errores)
+              </p>
             </div>
           </div>
 
@@ -292,7 +354,7 @@ export default function CSVImporter() {
 
           <p className="text-sm text-muted-foreground">
             Los números duplicados no fueron sobreescritos. Podés reimportar el mismo CSV
-            con seguridad — los registros ya existentes se omiten.
+            con seguridad — los clientes ya existentes se omiten y las mascotas se actualizan si ya existen.
           </p>
 
           <div className="flex gap-2">

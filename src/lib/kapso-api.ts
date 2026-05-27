@@ -11,10 +11,6 @@ import type {
 const KAPSO_PLATFORM_API_BASE = 'https://api.kapso.ai/platform/v1';
 const KAPSO_META_WHATSAPP_API_BASE = 'https://api.kapso.ai/meta/whatsapp/v23.0';
 
-if (!process.env.KAPSO_API_KEY) {
-  throw new Error('KAPSO_API_KEY is not set');
-}
-
 type KapsoApiOptions<T = unknown> = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: T;
@@ -35,6 +31,11 @@ async function kapsoFetch<T = unknown, B = unknown>(
   endpoint: string,
   options: KapsoApiOptions<B> = {}
 ): Promise<T> {
+  const apiKey = process.env.KAPSO_API_KEY;
+  if (!apiKey) {
+    throw new Error('KAPSO_API_KEY is not set');
+  }
+
   const { method = 'GET', body, params, apiBase = 'platform' } = options;
 
   const baseUrl = apiBase === 'meta' ? KAPSO_META_WHATSAPP_API_BASE : KAPSO_PLATFORM_API_BASE;
@@ -53,7 +54,7 @@ async function kapsoFetch<T = unknown, B = unknown>(
   }
 
   const headers: HeadersInit = {
-    'X-API-Key': process.env.KAPSO_API_KEY!,
+    'X-API-Key': apiKey,
     'Content-Type': 'application/json',
   };
 

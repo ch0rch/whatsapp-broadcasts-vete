@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -106,25 +107,19 @@ export default async function DashboardPage() {
           <CardContent>
             <ul className="space-y-2 text-sm">
               <li>
-                <a
-                  href="/contacts"
-                  className="text-primary hover:underline"
-                >
+                <Link href="/contacts" className="text-primary hover:underline">
                   Ver contactos
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="/campaigns"
-                  className="text-primary hover:underline"
-                >
+                <Link href="/campaigns" className="text-primary hover:underline">
                   Ver campañas
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/inbox" className="text-primary hover:underline">
+                <Link href="/inbox" className="text-primary hover:underline">
                   Bandeja de entrada
-                </a>
+                </Link>
               </li>
             </ul>
           </CardContent>

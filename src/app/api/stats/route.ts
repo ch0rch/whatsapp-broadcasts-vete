@@ -1,51 +1,11 @@
-import { NextResponse } from 'next/server';
-import { whatsappClient, phoneNumberId } from '@/lib/whatsapp';
-import { buildKapsoFields } from '@kapso/whatsapp-cloud-api';
-import type { MessageStats } from '@/types';
+import { NextResponse } from 'next/server'
 
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const sinceParam = searchParams.get('since');
+// Legacy route — disabled. Will be deleted in WU6.
+// The original code referenced @/lib/whatsapp which was never implemented in this repo.
 
-    // Default to messages from today
-    const since = sinceParam || new Date().toISOString().split('T')[0] + 'T00:00:00Z';
-
-    const history = await whatsappClient.messages.query({
-      phoneNumberId,
-      direction: 'outbound',
-      since,
-      limit: 100,
-      fields: buildKapsoFields(['status']),
-    });
-
-    const stats: MessageStats = {
-      totalSent: history.data.length,
-      delivered: 0,
-      read: 0,
-      failed: 0,
-      pending: 0,
-    };
-
-    history.data.forEach((msg) => {
-      const status = msg.kapso?.status;
-      if (status === 'delivered') {
-        stats.delivered++;
-      } else if (status === 'read') {
-        stats.read++;
-      } else if (status === 'failed') {
-        stats.failed++;
-      } else {
-        stats.pending++;
-      }
-    });
-
-    return NextResponse.json(stats);
-  } catch (error) {
-    console.error('Error fetching stats:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch stats' },
-      { status: 500 }
-    );
-  }
+export async function GET() {
+  return NextResponse.json(
+    { error: 'This endpoint has been deprecated. Campaign stats are now in /api/broadcasts.' },
+    { status: 410 },
+  )
 }

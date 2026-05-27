@@ -1,0 +1,28 @@
+-- vet-platform-mvp: opt_out_events audit table
+-- This table is already created in 0001_init.sql as part of the full schema.
+-- This migration is a no-op placeholder that documents intent for sequential tracking.
+--
+-- If running migrations incrementally and opt_out_events is missing, run:
+--
+-- create table if not exists opt_out_events (
+--   id           uuid primary key default gen_random_uuid(),
+--   clinic_id    uuid not null references clinics on delete cascade,
+--   customer_id  uuid not null references customers on delete cascade,
+--   triggered_by text not null check (triggered_by in ('inbound_message','admin','opt_in')),
+--   raw_message  text,
+--   triggered_at timestamptz not null default now()
+-- );
+--
+-- alter table opt_out_events enable row level security;
+--
+-- create policy opt_out_events_select on opt_out_events for select
+--   using (
+--     clinic_id in (
+--       select clinic_id from clinic_members where user_id = auth.uid()
+--     )
+--   );
+--
+-- The table and index are included in 0001_init.sql and 0002_indexes.sql respectively.
+-- This file satisfies the migration numbering contract in the tasks doc (task 1.3).
+
+select 1; -- no-op

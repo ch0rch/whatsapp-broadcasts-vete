@@ -264,7 +264,7 @@ export default function CSVImporter() {
                           <SelectItem value="phone">Teléfono</SelectItem>
                           <SelectItem value="name">Nombre del contacto</SelectItem>
                           <SelectItem value="pet_name">Nombre de la mascota</SelectItem>
-                          <SelectItem value="species">Especie (perro/gato/...)</SelectItem>
+                          <SelectItem value="species">Especie (perro/gato/ave/conejo/otro)</SelectItem>
                           <SelectItem value="breed">Raza</SelectItem>
                           <SelectItem value="birth_date">Fecha de nacimiento</SelectItem>
                           <SelectItem value="weight_kg">Peso (kg)</SelectItem>

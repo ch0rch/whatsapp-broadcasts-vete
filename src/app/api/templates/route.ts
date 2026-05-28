@@ -16,7 +16,10 @@ export async function GET() {
 
     return NextResponse.json(templates);
   } catch (error) {
-    console.error('Error fetching templates:', error);
+    console.error('[templates] GET fetch error', {
+      event: 'get_templates_error',
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json(
       { error: 'Failed to fetch templates' },
       { status: 500 }

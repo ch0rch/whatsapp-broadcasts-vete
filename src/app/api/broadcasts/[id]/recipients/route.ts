@@ -35,7 +35,10 @@ export async function POST(
     const result = await kapsoApi.broadcasts.addRecipients(id, body);
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    console.error('Error adding recipients:', error);
+    console.error('[broadcasts/recipients] POST add error', {
+      event: 'add_recipients_error',
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to add recipients' },
       { status: 500 }
@@ -64,7 +67,10 @@ export async function GET(
     const result = await kapsoApi.broadcasts.getRecipients(id, page, perPage);
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error fetching recipients:', error);
+    console.error('[broadcasts/recipients] GET fetch error', {
+      event: 'get_recipients_error',
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch recipients' },
       { status: 500 }

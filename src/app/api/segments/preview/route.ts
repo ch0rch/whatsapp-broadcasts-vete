@@ -41,7 +41,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ count })
   } catch (err) {
-    console.error('[segments/preview] POST error:', err)
+    console.error('[segments/preview] POST error', {
+      event: 'preview_segment_error',
+      error: err instanceof Error ? err.message : String(err),
+    })
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Preview failed' },
       { status: 500 },

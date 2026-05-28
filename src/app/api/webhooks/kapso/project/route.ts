@@ -105,10 +105,24 @@ export async function POST(request: NextRequest) {
 
   // 4. Idempotency check
   const admin = createAdminClient()
-  const { data: idempotencyRows } = await admin
+  const { data: idempotencyRows, error: idempotencyError } = await admin
     .from('webhook_events')
-    .insert({ id: idempotencyKey, event_type: eventType })
+    .upsert(
+      { id: idempotencyKey, event_type: eventType },
+      { onConflict: 'id', ignoreDuplicates: true },
+    )
     .select('id')
+
+  if (idempotencyError) {
+    console.error('[webhook/project] Idempotency check failed', {
+      event: 'idempotency_error',
+      idempotency_key: idempotencyKey,
+      event_type: eventType,
+      error: idempotencyError.message,
+    })
+    // Force Kapso to retry — do not silently ACK on DB error.
+    return NextResponse.json({ error: 'idempotency_check_failed' }, { status: 500 })
+  }
 
   const alreadyProcessed = !idempotencyRows || idempotencyRows.length === 0
 

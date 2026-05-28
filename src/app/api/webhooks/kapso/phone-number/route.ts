@@ -95,10 +95,24 @@ export async function POST(request: NextRequest) {
 
   // 4. Idempotency check — use message.id as the dedup key
   const admin = createAdminClient()
-  const { data: idempotencyRows } = await admin
+  const { data: idempotencyRows, error: idempotencyError } = await admin
     .from('webhook_events')
-    .insert({ id: messageId, event_type: eventType })
+    .upsert(
+      { id: messageId, event_type: eventType },
+      { onConflict: 'id', ignoreDuplicates: true },
+    )
     .select('id')
+
+  if (idempotencyError) {
+    console.error('[webhook/phone-number] Idempotency check failed', {
+      event: 'idempotency_error',
+      message_id: messageId,
+      event_type: eventType,
+      error: idempotencyError.message,
+    })
+    // Force Kapso to retry — do not silently ACK on DB error.
+    return NextResponse.json({ error: 'idempotency_check_failed' }, { status: 500 })
+  }
 
   const alreadyProcessed = !idempotencyRows || idempotencyRows.length === 0
 

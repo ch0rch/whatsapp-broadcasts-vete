@@ -45,7 +45,72 @@ export async function matchCustomers(
   return result.customers
 }
 
+/**
+ * Like matchCustomers but includes opted-out customers in the result.
+ * Used by hydrateRecipients to compute the segment-scoped excluded audit set.
+ *
+ * Returns the full set of customers that match the segment's predicates,
+ * regardless of opt-out status. The caller can then diff against the active
+ * set to find who was excluded by opt-out within this segment.
+ */
+export async function matchCustomersIncludingOptedOut(
+  supabase: SupabaseClient,
+  clinicId: string,
+  definition: SegmentDefinition,
+): Promise<CustomerMatch[]> {
+  const result = await matchCustomerIdsIncludingOptedOut(supabase, clinicId, definition)
+  if ('error' in result) return []
+  return result.customers
+}
+
 // ─── internal ────────────────────────────────────────────────────────────────
+
+/**
+ * Variant of matchCustomerIds that does NOT filter opted_out_at.
+ * Used to compute the segment-scoped excluded set for audit rows.
+ */
+async function matchCustomerIdsIncludingOptedOut(
+  supabase: SupabaseClient,
+  clinicId: string,
+  definition: SegmentDefinition,
+): Promise<{ ids: string[]; customers: CustomerMatch[] } | { error: string }> {
+  const { rules, combinator } = definition
+
+  const { data: customers, error: custErr } = await supabase
+    .from('customers')
+    .select('id, phone_number, name, opted_out_at')
+    .eq('clinic_id', clinicId)
+    .is('deleted_at', null)
+  // NOTE: no .is('opted_out_at', null) filter here
+
+  if (custErr) return { error: custErr.message }
+  if (!customers?.length) return { ids: [], customers: [] }
+
+  const { data: pets, error: petErr } = await supabase
+    .from('pets')
+    .select('id, customer_id, species, next_vaccine_due, last_visit_date, birth_date')
+    .eq('clinic_id', clinicId)
+
+  if (petErr) return { error: petErr.message }
+  const petsByCustomer = groupPetsByCustomer(pets ?? [])
+
+  const matched = customers.filter((customer) => {
+    const customerPets = petsByCustomer[customer.id] ?? []
+    const results = rules.map((rule) => evaluateRule(rule, customer, customerPets))
+    return combinator === 'and'
+      ? results.every(Boolean)
+      : results.some(Boolean)
+  })
+
+  return {
+    ids: matched.map((c) => c.id),
+    customers: matched.map((c) => ({
+      id: c.id,
+      phone_number: c.phone_number,
+      name: c.name,
+    })),
+  }
+}
 
 async function matchCustomerIds(
   supabase: SupabaseClient,

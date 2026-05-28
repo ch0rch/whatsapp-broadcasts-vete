@@ -28,41 +28,26 @@ export async function GET(request: NextRequest) {
   const ranAt = new Date().toISOString()
   const admin = createAdminClient()
 
-  // Find all clinics whose usage_period_start is before the current month.
-  // date_trunc('month', now())::date is e.g. '2025-05-01' for May 2025.
-  // Any usage_period_start < that value belongs to a previous month.
-  const { data: staleClinicIds, error: selectError } = await admin
-    .rpc('get_stale_usage_clinic_ids')
-    .select()
+  // Reset every clinic whose usage_period_start belongs to a previous calendar month.
+  // Supabase JS doesn't expose raw SQL expressions for .update(), so we compute the
+  // current month start in JS — safe because this runs once per day from cron.
+  const monthStart = getFirstDayOfCurrentMonth()
+  const { data: updated, error: updateError } = await admin
+    .from('clinics')
+    .update({
+      messages_used_this_month: 0,
+      usage_period_start: monthStart,
+    })
+    .lt('usage_period_start', monthStart)
+    .select('id')
 
-  // Fallback: if the RPC doesn't exist, run a direct query
-  if (selectError) {
-    // Direct approach: update all clinics where usage_period_start < current month start
-    const { data: updated, error: updateError } = await admin
-      .from('clinics')
-      .update({
-        messages_used_this_month: 0,
-        // We set usage_period_start to the first day of the current month.
-        // Supabase JS doesn't support raw SQL expressions in .update(), so we use today's
-        // month start computed in JS. This is safe because this runs once/day from cron.
-        usage_period_start: getFirstDayOfCurrentMonth(),
-      })
-      .lt('usage_period_start', getFirstDayOfCurrentMonth())
-      .select('id')
-
-    if (updateError) {
-      console.error('[cron/reset-usage] update failed', { error: updateError })
-      return NextResponse.json({ error: 'Reset failed', details: updateError.message }, { status: 500 })
-    }
-
-    const resetCount = updated?.length ?? 0
-    console.log('[cron/reset-usage] reset complete', { reset_count: resetCount, ran_at: ranAt })
-    return NextResponse.json({ reset_count: resetCount, ran_at: ranAt })
+  if (updateError) {
+    console.error('[cron/reset-usage] update failed', { error: updateError })
+    return NextResponse.json({ error: 'Reset failed', details: updateError.message }, { status: 500 })
   }
 
-  // If the RPC exists, use its result
-  const resetCount = (staleClinicIds as { id: string }[] | null)?.length ?? 0
-  console.log('[cron/reset-usage] reset complete (via rpc)', { reset_count: resetCount, ran_at: ranAt })
+  const resetCount = updated?.length ?? 0
+  console.log('[cron/reset-usage] reset complete', { reset_count: resetCount, ran_at: ranAt })
   return NextResponse.json({ reset_count: resetCount, ran_at: ranAt })
 }
 

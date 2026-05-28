@@ -7,7 +7,7 @@
  * Graph:
  *   START → clinic_agent (handoff_to_human | session_timeout)
  *
- * Tools (all webhook-based, HMAC-signed):
+ * Tools (all webhook-based, Bearer-token authenticated):
  *   - lookup_customer  → POST /api/crm/customers/lookup
  *   - upsert_pet       → POST /api/crm/pets/upsert
  *   - mark_opt_out     → POST /api/crm/customers/opt-out
@@ -16,7 +16,7 @@
  *
  * Environment variables required at push time:
  *   APP_BASE_URL              — e.g. https://yourapp.vercel.app
- *   KAPSO_AGENT_TOOL_SECRET   — shared HMAC secret for webhook auth
+ *   KAPSO_AGENT_TOOL_SECRET   — shared bearer-token secret for agent-tool auth
  *   CLINIC_PHONE_NUMBER_ID    — Kapso phone_number_id for the trigger
  *
  * Deploy:
@@ -25,15 +25,27 @@
 
 import { START, Workflow } from '@kapso/workflows'
 
-const APP_BASE_URL = process.env.APP_BASE_URL ?? ''
-const KAPSO_AGENT_TOOL_SECRET = process.env.KAPSO_AGENT_TOOL_SECRET ?? ''
-const CLINIC_PHONE_NUMBER_ID = process.env.CLINIC_PHONE_NUMBER_ID ?? ''
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(
+      `${name} must be set before running 'kapso build' or 'kapso push'. ` +
+        `See kapso/workflows/inbound-clinic/workflow.ts for the full list of required vars.`,
+    )
+  }
+  return value
+}
 
-// HMAC signature header — value is the shared secret itself (Kapso signs the body with it).
-// The receiving route verifies HMAC-SHA256(secret, rawBody) == X-Kapso-Signature.
+const APP_BASE_URL = requireEnv('APP_BASE_URL')
+const KAPSO_AGENT_TOOL_SECRET = requireEnv('KAPSO_AGENT_TOOL_SECRET')
+const CLINIC_PHONE_NUMBER_ID = requireEnv('CLINIC_PHONE_NUMBER_ID')
+
+// Kapso flow_agent_webhooks can only send static headers (no body signing), so the
+// receiving routes use shared-token Bearer auth instead of HMAC-SHA256. HTTPS in
+// transit protects the token; same threat model as Kapso's own platform API key.
 const AGENT_TOOL_HEADERS: Record<string, string> = {
   'Content-Type': 'application/json',
-  'X-Kapso-Signature': KAPSO_AGENT_TOOL_SECRET,
+  Authorization: `Bearer ${KAPSO_AGENT_TOOL_SECRET}`,
 }
 
 const workflow = new Workflow('inbound-clinic', {

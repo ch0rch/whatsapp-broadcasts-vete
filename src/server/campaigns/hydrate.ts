@@ -13,7 +13,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { kapsoApi } from '@/lib/kapso-api'
-import { matchCustomers } from '@/server/segments/builder'
+import { matchCustomers, matchCustomersIncludingOptedOut } from '@/server/segments/builder'
 import {
   getClinicCapData,
   updateCampaignAfterHydrate,
@@ -106,24 +106,26 @@ export async function hydrateRecipients(
       created_at: new Date().toISOString(),
     }))
 
-    // Also insert excluded (opted-out) audit rows
-    // Already excluded at matchCustomers level — get excluded count for audit
-    const allCustomersResult = await admin
-      .from('customers')
-      .select('id, phone_number')
-      .eq('clinic_id', campaign.clinic_id)
-      .is('deleted_at', null)
-      .not('opted_out_at', 'is', null)
-
-    const excludedRows = (allCustomersResult.data ?? []).map((c) => ({
-      clinic_id: campaign.clinic_id,
-      campaign_id: campaign.id,
-      customer_id: c.id,
-      phone_number: c.phone_number,
-      status: 'excluded' as const,
-      excluded_reason: 'opted_out_excluded',
-      created_at: new Date().toISOString(),
-    }))
+    // Excluded (opted-out) audit rows — segment-scoped only.
+    // Fetch customers that match the segment predicates including opted-out ones,
+    // then diff against the active set to find who was excluded within this segment.
+    const preFilterMatches = await matchCustomersIncludingOptedOut(
+      admin,
+      campaign.clinic_id,
+      segmentRow.definition,
+    )
+    const activeIds = new Set(customers.map((c) => c.id))
+    const excludedRows = preFilterMatches
+      .filter((c) => !activeIds.has(c.id))
+      .map((c) => ({
+        clinic_id: campaign.clinic_id,
+        campaign_id: campaign.id,
+        customer_id: c.id,
+        phone_number: c.phone_number,
+        status: 'excluded' as const,
+        excluded_reason: 'opted_out_excluded',
+        created_at: new Date().toISOString(),
+      }))
 
     // Batch insert recipients
     if (recipientRows.length > 0) {

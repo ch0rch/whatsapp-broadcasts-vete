@@ -60,6 +60,14 @@ export type CreateCustomerInput = {
 
 export type UpdateCustomerInput = Partial<Pick<Customer, 'name' | 'email' | 'notes'>>
 
+export type CustomerUpsertInput = {
+  clinic_id: string
+  phone_number: string
+  name?: string | null
+  email?: string | null
+  notes?: string | null
+}
+
 // ─── Scoped-client operations (RLS-enforced, vet UI paths) ───────────────────
 
 /**
@@ -190,6 +198,61 @@ export async function phoneExistsForClinic(
     .maybeSingle()
 
   return !!data
+}
+
+/**
+ * Upsert a customer keyed on (clinic_id, phone_number).
+ * If the customer exists → patches the optional fields (name/email/notes) when provided.
+ * If not → inserts a new row.
+ *
+ * Service-role only — called from the Bearer-authenticated agent-tool route after
+ * the route has resolved clinic_id from whatsapp_phone_number_id.
+ */
+export async function upsertCustomer(
+  input: CustomerUpsertInput,
+): Promise<{ customer_id: string; action: 'created' | 'updated' }> {
+  const admin = createAdminClient()
+
+  const { data: existing } = await admin
+    .from('customers')
+    .select('id')
+    .eq('clinic_id', input.clinic_id)
+    .eq('phone_number', input.phone_number)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (existing) {
+    const updateFields: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    }
+    if (input.name !== undefined && input.name !== null) updateFields.name = input.name
+    if (input.email !== undefined) updateFields.email = input.email
+    if (input.notes !== undefined) updateFields.notes = input.notes
+
+    const { error } = await admin.from('customers').update(updateFields).eq('id', existing.id)
+    if (error) throw new Error(`Failed to update customer: ${error.message}`)
+    return { customer_id: existing.id, action: 'updated' }
+  }
+
+  const { data: created, error } = await admin
+    .from('customers')
+    .insert({
+      clinic_id: input.clinic_id,
+      phone_number: input.phone_number,
+      name: input.name ?? null,
+      email: input.email ?? null,
+      notes: input.notes ?? null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single()
+
+  if (error || !created) {
+    throw new Error(`Failed to create customer: ${error?.message ?? 'unknown error'}`)
+  }
+
+  return { customer_id: created.id, action: 'created' }
 }
 
 /**

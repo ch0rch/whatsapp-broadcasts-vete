@@ -96,10 +96,29 @@ workflow.addNode(
         },
       },
       {
+        name: 'upsert_customer',
+        description:
+          'Create a new customer record or update an existing one (keyed by phone number). ' +
+          'Call this when lookup_customer returned {found: false} and you have at minimum the customer name. ' +
+          'You MUST call upsert_customer BEFORE upsert_pet for new customers — upsert_pet requires the customer to already exist. ' +
+          'Returns {customer_id, action} where action is "created" or "updated".',
+        url: `${APP_BASE_URL}/api/crm/customers/upsert`,
+        method: 'POST',
+        headers: AGENT_TOOL_HEADERS,
+        bodyTemplate: {
+          phone_number: '{{context.channel.from}}',
+          phone_number_id: '{{context.channel.phone_number_id}}',
+          name: '{{vars.customer_name}}',
+          email: '{{vars.customer_email}}',
+          notes: '{{vars.customer_notes}}',
+        },
+      },
+      {
         name: 'upsert_pet',
         description:
           'Create or update a pet record for a customer. ' +
           'Call this when the customer mentions a pet by name, species, age, breed, or any new information. ' +
+          'PRECONDITION: the customer must already exist (call upsert_customer first if lookup_customer returned {found: false}). ' +
           'Returns {pet_id, action} where action is "created" or "updated".',
         url: `${APP_BASE_URL}/api/crm/pets/upsert`,
         method: 'POST',
@@ -183,7 +202,21 @@ No das diagnósticos médicos ni consejos de tratamiento.
 
 ## Flujo inicial
 
-Al recibir el primer mensaje, llamá a \`lookup_customer\` con el número del cliente para conocer sus datos y los de sus mascotas. Usá esa información para personalizar la respuesta.
+Al recibir el primer mensaje, llamá a \`lookup_customer\` con el número del cliente para conocer sus datos y los de sus mascotas.
+
+- Si devuelve \`found: true\`: usá la información (nombre, mascotas) para personalizar la respuesta.
+- Si devuelve \`found: false\`: el cliente NO está registrado todavía. Saludá cálidamente, presentate como el asistente digital de la clínica, y preguntale su nombre completo para registrarlo. Cuando te dé el nombre, llamá a \`upsert_customer\` con ese dato. Confirmá el registro y recién después pasá a captar datos de mascotas si corresponde.
+
+## Registro de cliente nuevo
+
+Cuando un cliente desconocido pide registrarse o querés bootstrap su perfil:
+
+1. Pedí (al mínimo) el nombre completo. Email y notas son opcionales — no presiones por ellos.
+2. Llamá a \`upsert_customer\` con \`name\` obligatorio; \`email\` y \`notes\` solo si el cliente los ofrece.
+3. Si el resultado tiene \`action: "created"\`, confirmá: "¡Listo [nombre]! Ya te tengo registrado en la clínica."
+4. Si tiene \`action: "updated"\`, confirmá: "Actualicé tus datos, [nombre]."
+
+Después de tener el cliente creado, ya podés capturar datos de mascotas con \`upsert_pet\`.
 
 ## Opt-out (baja de mensajes)
 
@@ -201,10 +234,12 @@ Si el cliente escribe ALTA (o "quiero seguir recibiendo mensajes", "volver a rec
 ## Captura de datos de mascotas
 
 Cuando el cliente mencione una mascota nueva o actualice información (edad, raza, peso, etc.):
-1. Usá las variables de contexto para rellenar los campos disponibles.
-2. Llamá a \`upsert_pet\` con los datos que tengas.
-3. Si el resultado tiene \`action: "created"\`, confirmá el registro: "¡Listo! Registramos a [nombre] en la clínica."
-4. Si tiene \`action: "updated"\`, confirmá: "Actualizamos la información de [nombre]."
+
+1. **Precondición**: el cliente tiene que estar registrado. Si lookup_customer devolvió \`found: false\` y todavía no llamaste \`upsert_customer\`, hacelo PRIMERO (ver "Registro de cliente nuevo").
+2. Usá las variables de contexto para rellenar los campos disponibles del pet.
+3. Llamá a \`upsert_pet\` con los datos que tengas.
+4. Si el resultado tiene \`action: "created"\`, confirmá el registro: "¡Listo! Registramos a [nombre] en la clínica."
+5. Si tiene \`action: "updated"\`, confirmá: "Actualizamos la información de [nombre]."
 
 Especies válidas: perro, gato, ave, conejo, otro.
 Si el cliente nombra una especie distinta, mapeala a "otro".

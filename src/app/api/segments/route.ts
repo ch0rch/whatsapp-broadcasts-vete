@@ -12,7 +12,10 @@ export async function GET() {
     const segments = await listSegments()
     return NextResponse.json({ data: segments })
   } catch (err) {
-    console.error('[segments] GET error:', err)
+    console.error('[segments] GET list error', {
+      event: 'list_segments_error',
+      error: err instanceof Error ? err.message : String(err),
+    })
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to list segments' },
       { status: 500 },
@@ -53,7 +56,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ data: segment }, { status: 201 })
   } catch (err) {
-    console.error('[segments] POST error:', err)
+    console.error('[segments] POST create error', {
+      event: 'create_segment_error',
+      error: err instanceof Error ? err.message : String(err),
+    })
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to create segment' },
       { status: 500 },

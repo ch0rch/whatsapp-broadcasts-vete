@@ -26,7 +26,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    console.error('Error creating broadcast:', error);
+    console.error('[broadcasts] POST create error', {
+      event: 'create_broadcast_error',
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create broadcast' },
       { status: 500 }

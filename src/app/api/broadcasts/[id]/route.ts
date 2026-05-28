@@ -18,7 +18,10 @@ export async function GET(
     const result = await kapsoApi.broadcasts.get(id);
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error fetching broadcast:', error);
+    console.error('[broadcasts] GET fetch error', {
+      event: 'get_broadcast_error',
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to fetch broadcast' },
       { status: 500 }

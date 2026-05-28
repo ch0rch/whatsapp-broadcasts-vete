@@ -18,7 +18,10 @@ export async function POST(
     const result = await kapsoApi.broadcasts.send(id);
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error sending broadcast:', error);
+    console.error('[broadcasts] POST send error', {
+      event: 'send_broadcast_error',
+      error: error instanceof Error ? error.message : String(error),
+    })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to send broadcast' },
       { status: 500 }

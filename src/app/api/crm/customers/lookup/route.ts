@@ -1,8 +1,9 @@
 /**
  * POST /api/crm/customers/lookup
  *
- * HMAC-signed agent-tool endpoint. Called by the Kapso workflow's lookup_customer tool.
- * Auth: X-Kapso-Signature header (HMAC-SHA256 using KAPSO_AGENT_TOOL_SECRET).
+ * Bearer-token agent-tool endpoint. Called by the Kapso workflow's lookup_customer tool.
+ * Auth: `Authorization: Bearer ${KAPSO_AGENT_TOOL_SECRET}` (Kapso flow_agent_webhooks
+ * only support static headers, so HMAC body-signing is not possible).
  * Uses service-role client — bypasses RLS; clinic_id is resolved from the clinic's
  * whatsapp_phone_number_id passed in the request body.
  *
@@ -11,7 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyHmacSignature } from '@/lib/webhook-auth'
+import { verifyBearerToken } from '@/lib/agent-tool-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { lookupByPhone } from '@/server/customers/repo'
 import { env } from '@/env'
@@ -34,19 +35,16 @@ function computeAgeInYears(birthDate: string | null): number | null {
 }
 
 export async function POST(request: NextRequest) {
-  const rawBody = await request.text()
-  const signature = request.headers.get('x-kapso-signature')
+  const authHeader = request.headers.get('authorization')
   const agentSecret = env.KAPSO_AGENT_TOOL_SECRET as string
 
-  // Verify HMAC signature
-  const valid = await verifyHmacSignature(rawBody, signature, agentSecret)
-  if (!valid) {
+  if (!verifyBearerToken(authHeader, agentSecret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   let body: { phone_number: string; phone_number_id?: string }
   try {
-    body = JSON.parse(rawBody)
+    body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }

@@ -1,8 +1,9 @@
 /**
  * POST /api/crm/customers/opt-out
  *
- * HMAC-signed agent-tool endpoint. Called by the Kapso workflow's mark_opt_out tool.
- * Auth: X-Kapso-Signature header (HMAC-SHA256 using KAPSO_AGENT_TOOL_SECRET).
+ * Bearer-token agent-tool endpoint. Called by the Kapso workflow's mark_opt_out tool.
+ * Auth: `Authorization: Bearer ${KAPSO_AGENT_TOOL_SECRET}` (Kapso flow_agent_webhooks
+ * only support static headers, so HMAC body-signing is not possible).
  * Uses service-role client — bypasses RLS; clinic_id resolved from phone_number_id.
  *
  * Input: { phone_number: string, phone_number_id?: string, reason?: string }
@@ -14,27 +15,23 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyHmacSignature } from '@/lib/webhook-auth'
+import { verifyBearerToken } from '@/lib/agent-tool-auth'
 import { normalizeAndValidate } from '@/lib/phone-normalizer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { env } from '@/env'
 
 export async function POST(request: NextRequest) {
-  // 1. Read raw body ONCE — required for HMAC verification
-  const rawBody = await request.text()
-  const signature = request.headers.get('x-kapso-signature')
+  const authHeader = request.headers.get('authorization')
   const agentSecret = env.KAPSO_AGENT_TOOL_SECRET as string
 
-  // 2. Verify HMAC signature
-  const valid = await verifyHmacSignature(rawBody, signature, agentSecret)
-  if (!valid) {
+  if (!verifyBearerToken(authHeader, agentSecret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // 3. Parse body
+  // Parse body
   let body: { phone_number: string; phone_number_id?: string; reason?: string }
   try {
-    body = JSON.parse(rawBody)
+    body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }

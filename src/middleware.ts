@@ -4,11 +4,14 @@ import { NextResponse, type NextRequest } from 'next/server'
 // Routes that don't require authentication
 const PUBLIC_ROUTES = ['/login']
 
-// Routes that should be completely bypassed (webhooks, cron, health)
+// Routes that should be completely bypassed by the Supabase JWT middleware.
+// These routes carry their own auth (HMAC body sig, Bearer shared-token, or
+// Vercel-injected cron secret) and must not be challenged for a user session.
 const BYPASS_PREFIXES = [
-  '/api/webhooks/',
-  '/api/cron/',
-  '/api/health',
+  '/api/webhooks/',  // Kapso webhooks (HMAC via X-Webhook-Signature)
+  '/api/crm/',       // Kapso agent tools (Bearer KAPSO_AGENT_TOOL_SECRET)
+  '/api/cron/',      // Vercel cron jobs (Bearer CRON_SECRET, injected by Vercel)
+  '/api/health',     // Liveness probe (public)
 ]
 
 // API route prefixes that should return 401 JSON (not redirect to /login)

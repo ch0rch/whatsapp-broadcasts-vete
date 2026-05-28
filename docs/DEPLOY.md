@@ -43,11 +43,16 @@ supabase db push
 ```
 
 Migration order (applied automatically by `db push`):
-- `0001_init.sql` — all 10 tables + RLS + membership policies
+- `0001_init.sql` — all 10 tables + RLS + membership policies (Spanish species values `perro|gato|ave|conejo|otro` are inlined here)
 - `0002_indexes.sql` — partial indexes for segment queries
 - `0003_opt_out_events.sql` — opt-out audit table
-- `0004_fix_species_constraint.sql` — Spanish species values (`perro|gato|ave|conejo|otro`)
 - `0005_increment_usage_rpc.sql` — atomic RPC for monthly cap increment
+
+> The gap at `0004` is intentional. `0004_fix_species_constraint.sql` was an
+> earlier interim migration that fixed the species `CHECK` constraint; its
+> changes were later inlined into `0001_init.sql` and the file was deleted.
+> Fresh installs only need the files listed above; existing environments that
+> already applied `0004` are unaffected.
 
 3. Enable **Email/Password** auth in Supabase Authentication settings.
 

@@ -30,14 +30,20 @@ export async function POST(request: NextRequest) {
   const rawBody = await request.text()
   console.log('[upsert_pet] rx', { event: 'rx', body: rawBody })
 
+  // Accept the field names the LLM naturally produces ('age' / 'weight') in addition
+  // to the canonical ones ('birth_year' / 'weight_kg'), and treat phone_number as
+  // optional so the endpoint can fall back to the most recently active customer in
+  // the single-tenant clinic when the LLM omits it for pet calls.
   let body: {
-    phone_number: string
+    phone_number?: string
     phone_number_id?: string
     name: string
     species: string
     breed?: string
     birth_year?: number
-    weight_kg?: number
+    age?: number
+    weight_kg?: number | string
+    weight?: number | string
     notes?: string
   }
   try {
@@ -46,12 +52,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { phone_number, phone_number_id, name, species, breed, birth_year, weight_kg, notes } = body
+  const { phone_number, phone_number_id, name, species, breed, notes } = body
+  const birth_year = body.birth_year ?? (body.age ? new Date().getFullYear() - body.age : undefined)
+  const weight_kg = body.weight_kg !== undefined ? Number(body.weight_kg) : body.weight !== undefined ? Number(body.weight) : undefined
 
-  if (!phone_number || !name || !species) {
+  if (!name || !species) {
     console.warn('[upsert_pet] reject: missing required fields', { event: 'reject', body })
     return NextResponse.json(
-      { error: 'phone_number, name, and species are required' },
+      { error: 'name and species are required' },
       { status: 400 },
     )
   }
@@ -75,18 +83,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Clinic not resolved' }, { status: 404 })
   }
 
-  // Resolve customer by phone_number within the clinic
-  const { data: customer } = await admin
+  // Resolve customer: prefer phone_number when the LLM supplied it; otherwise fall
+  // back to the most-recently-updated customer in this clinic (works for the
+  // single-active-conversation MVP because Kapso's webhook tool only carries
+  // {{vars.*}} and {{context.phone_number}} — the LLM rarely re-emits
+  // phone_number for pet calls). Race-condition risk for multi-tenant or
+  // concurrent registrations; revisit if pilot uncovers issues.
+  const customerQuery = admin
     .from('customers')
-    .select('id')
+    .select('id, phone_number')
     .eq('clinic_id', clinic.id)
-    .eq('phone_number', phone_number)
     .is('deleted_at', null)
-    .single()
+  const { data: customer } = phone_number
+    ? await customerQuery.eq('phone_number', phone_number).maybeSingle()
+    : await customerQuery.order('updated_at', { ascending: false }).limit(1).maybeSingle()
 
   if (!customer) {
+    console.warn('[upsert_pet] reject: no resolvable customer', { event: 'reject', reason: 'no_customer', phone_number })
     return NextResponse.json(
-      { error: 'CUSTOMER_NOT_FOUND', message: 'No customer found for this phone_number. Call lookup_customer first.' },
+      { error: 'CUSTOMER_NOT_FOUND', message: 'No customer found. Call lookup_customer or upsert_customer first.' },
       { status: 404 },
     )
   }

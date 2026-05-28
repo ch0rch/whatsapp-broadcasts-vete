@@ -90,8 +90,13 @@ export default async function InboxPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-medium text-sm truncate">
-                      {conv.customer_id ? conv.phone_number : conv.phone_number}
+                      {conv.customer_name ?? conv.phone_number}
                     </span>
+                    {conv.customer_name && (
+                      <span className="text-xs text-muted-foreground truncate">
+                        {conv.phone_number}
+                      </span>
+                    )}
                     <Badge variant="secondary" className="shrink-0 text-xs">
                       Espera atención
                     </Badge>

@@ -218,15 +218,19 @@ export async function getConversationByKapsoId(
 
 /**
  * List conversations in 'handoff' status for a clinic.
- * Used by the inbox UI (PR-5/WU12).
+ * Used by the inbox UI (PR-5/WU12). Joins customers to surface their name.
  */
+export type HandoffConversation = Conversation & {
+  customer_name: string | null
+}
+
 export async function listHandoffConversations(
   admin: SupabaseClient,
   clinicId: string,
-): Promise<Conversation[]> {
+): Promise<HandoffConversation[]> {
   const { data, error } = await admin
     .from('conversations')
-    .select('*')
+    .select('*, customer:customers(name)')
     .eq('clinic_id', clinicId)
     .eq('status', 'handoff')
     .order('created_at', { ascending: false })
@@ -236,7 +240,12 @@ export async function listHandoffConversations(
     return []
   }
 
-  return (data ?? []) as Conversation[]
+  return ((data ?? []) as Array<Conversation & { customer: { name: string | null } | null }>).map(
+    (row) => ({
+      ...row,
+      customer_name: row.customer?.name ?? null,
+    }),
+  )
 }
 
 /**

@@ -88,7 +88,12 @@ export async function POST(request: NextRequest) {
   }
 
   const messageId = payload.message?.id
-  const eventType = payload.event ?? 'whatsapp.message.unknown'
+  // Kapso v2 puts the event type in the X-Webhook-Event header, not the body.
+  // Fall back to body.event (legacy v1) and then to a sentinel.
+  const eventType =
+    request.headers.get('x-webhook-event') ??
+    payload.event ??
+    'whatsapp.message.unknown'
 
   if (!messageId) {
     // Not a message event (e.g. test ping) — ACK silently

@@ -1,8 +1,9 @@
 /**
  * POST /api/crm/pets/upsert
  *
- * HMAC-signed agent-tool endpoint. Called by the Kapso workflow's upsert_pet tool.
- * Auth: X-Kapso-Signature header (HMAC-SHA256 using KAPSO_AGENT_TOOL_SECRET).
+ * Bearer-token agent-tool endpoint. Called by the Kapso workflow's upsert_pet tool.
+ * Auth: `Authorization: Bearer ${KAPSO_AGENT_TOOL_SECRET}` (Kapso flow_agent_webhooks
+ * only support static headers, so HMAC body-signing is not possible).
  *
  * Design decision: REQUIRES the customer to exist (identified by phone_number).
  * The agent flow should call lookup_customer first; if the customer doesn't exist
@@ -13,18 +14,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyHmacSignature } from '@/lib/webhook-auth'
+import { verifyBearerToken } from '@/lib/agent-tool-auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { upsertPet, VALID_SPECIES, type Species } from '@/server/pets/repo'
 import { env } from '@/env'
 
 export async function POST(request: NextRequest) {
-  const rawBody = await request.text()
-  const signature = request.headers.get('x-kapso-signature')
+  const authHeader = request.headers.get('authorization')
   const agentSecret = env.KAPSO_AGENT_TOOL_SECRET as string
 
-  const valid = await verifyHmacSignature(rawBody, signature, agentSecret)
-  if (!valid) {
+  if (!verifyBearerToken(authHeader, agentSecret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
     notes?: string
   }
   try {
-    body = JSON.parse(rawBody)
+    body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }

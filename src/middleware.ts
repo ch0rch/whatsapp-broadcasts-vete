@@ -9,10 +9,19 @@ const PUBLIC_ROUTES = ['/login']
 // Vercel-injected cron secret) and must not be challenged for a user session.
 const BYPASS_PREFIXES = [
   '/api/webhooks/',  // Kapso webhooks (HMAC via X-Webhook-Signature)
-  '/api/crm/',       // Kapso agent tools (Bearer KAPSO_AGENT_TOOL_SECRET)
   '/api/cron/',      // Vercel cron jobs (Bearer CRON_SECRET, injected by Vercel)
   '/api/health',     // Liveness probe (public)
 ]
+
+// Exact-path bypass for /api/crm agent-tool endpoints. The rest of /api/crm/
+// (list, get, edit, delete) is vet-UI and DOES need the Supabase JWT check.
+const BYPASS_EXACT_PATHS = new Set([
+  '/api/crm/customers/lookup',   // Kapso agent tool (Bearer)
+  '/api/crm/customers/upsert',   // Kapso agent tool (Bearer)
+  '/api/crm/customers/opt-out',  // Kapso agent tool (Bearer)
+  '/api/crm/customers/opt-in',   // Kapso agent tool (Bearer)
+  '/api/crm/pets/upsert',        // Kapso agent tool (Bearer)
+])
 
 // API route prefixes that should return 401 JSON (not redirect to /login)
 // Excludes bypass prefixes above (those never reach auth check)
@@ -21,7 +30,8 @@ function isApiRoute(pathname: string): boolean {
 }
 
 function isBypassRoute(pathname: string): boolean {
-  return BYPASS_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  if (BYPASS_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return true
+  return BYPASS_EXACT_PATHS.has(pathname)
 }
 
 function isPublicRoute(pathname: string): boolean {

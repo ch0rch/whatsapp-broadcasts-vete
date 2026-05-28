@@ -27,9 +27,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const rawBody = await request.text()
+  console.log('[upsert_pet] rx', { event: 'rx', body: rawBody })
+
   let body: {
     phone_number: string
-    phone_number_id: string
+    phone_number_id?: string
     name: string
     species: string
     breed?: string
@@ -38,16 +41,17 @@ export async function POST(request: NextRequest) {
     notes?: string
   }
   try {
-    body = await request.json()
+    body = JSON.parse(rawBody)
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
   const { phone_number, phone_number_id, name, species, breed, birth_year, weight_kg, notes } = body
 
-  if (!phone_number || !phone_number_id || !name || !species) {
+  if (!phone_number || !name || !species) {
+    console.warn('[upsert_pet] reject: missing required fields', { event: 'reject', body })
     return NextResponse.json(
-      { error: 'phone_number, phone_number_id, name, and species are required' },
+      { error: 'phone_number, name, and species are required' },
       { status: 400 },
     )
   }
@@ -59,17 +63,16 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Resolve clinic_id: prefer the supplied whatsapp_phone_number_id; otherwise fall
+  // back to the single-tenant clinic (MVP). TODO multi-tenant: require phone_number_id.
   const admin = createAdminClient()
-
-  // Resolve clinic_id from whatsapp_phone_number_id
-  const { data: clinic } = await admin
-    .from('clinics')
-    .select('id')
-    .eq('whatsapp_phone_number_id', phone_number_id)
-    .single()
+  const clinicQuery = admin.from('clinics').select('id')
+  const { data: clinic } = phone_number_id
+    ? await clinicQuery.eq('whatsapp_phone_number_id', phone_number_id).maybeSingle()
+    : await clinicQuery.limit(1).maybeSingle()
 
   if (!clinic) {
-    return NextResponse.json({ error: 'Clinic not found for this phone_number_id' }, { status: 404 })
+    return NextResponse.json({ error: 'Clinic not resolved' }, { status: 404 })
   }
 
   // Resolve customer by phone_number within the clinic

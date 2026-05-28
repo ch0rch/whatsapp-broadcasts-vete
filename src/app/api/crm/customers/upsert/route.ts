@@ -45,24 +45,22 @@ export async function POST(request: NextRequest) {
 
   const { phone_number, phone_number_id, name, email, notes } = body
 
-  if (!phone_number || !phone_number_id) {
-    console.warn('[upsert_customer] reject: missing phone fields', { event: 'reject', reason: 'phone_missing', body })
-    return NextResponse.json(
-      { error: 'phone_number and phone_number_id are required' },
-      { status: 400 },
-    )
+  if (!phone_number) {
+    console.warn('[upsert_customer] reject: missing phone_number', { event: 'reject', reason: 'phone_number_missing', body })
+    return NextResponse.json({ error: 'phone_number is required' }, { status: 400 })
   }
 
+  // Resolve clinic_id: prefer the supplied whatsapp_phone_number_id; otherwise fall
+  // back to the single-tenant clinic (MVP). TODO multi-tenant: require phone_number_id.
   const admin = createAdminClient()
-
-  const { data: clinic } = await admin
-    .from('clinics')
-    .select('id')
-    .eq('whatsapp_phone_number_id', phone_number_id)
-    .single()
+  const clinicQuery = admin.from('clinics').select('id')
+  const { data: clinic } = phone_number_id
+    ? await clinicQuery.eq('whatsapp_phone_number_id', phone_number_id).maybeSingle()
+    : await clinicQuery.limit(1).maybeSingle()
 
   if (!clinic) {
-    return NextResponse.json({ error: 'Clinic not found for this phone_number_id' }, { status: 404 })
+    console.warn('[upsert_customer] reject: clinic not resolved', { event: 'reject', reason: 'clinic_not_resolved', phone_number_id })
+    return NextResponse.json({ error: 'Clinic not resolved' }, { status: 404 })
   }
 
   try {

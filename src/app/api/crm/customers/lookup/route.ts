@@ -59,21 +59,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'phone_number is required' }, { status: 400 })
   }
 
-  // Resolve clinic_id from whatsapp_phone_number_id
-  if (!phone_number_id) {
-    console.warn('[lookup_customer] reject: missing phone_number_id', { event: 'reject', reason: 'phone_number_id_missing', body })
-    return NextResponse.json({ error: 'phone_number_id is required' }, { status: 400 })
-  }
-
+  // Resolve clinic_id: prefer the supplied whatsapp_phone_number_id; otherwise fall
+  // back to the single-tenant clinic (MVP). TODO multi-tenant: require phone_number_id.
   const admin = createAdminClient()
-  const { data: clinic } = await admin
-    .from('clinics')
-    .select('id')
-    .eq('whatsapp_phone_number_id', phone_number_id)
-    .single()
+  const clinicQuery = admin.from('clinics').select('id')
+  const { data: clinic } = phone_number_id
+    ? await clinicQuery.eq('whatsapp_phone_number_id', phone_number_id).maybeSingle()
+    : await clinicQuery.limit(1).maybeSingle()
 
   if (!clinic) {
-    return NextResponse.json({ error: 'Clinic not found for this phone_number_id' }, { status: 404 })
+    console.warn('[lookup_customer] reject: clinic not resolved', { event: 'reject', reason: 'clinic_not_resolved', phone_number_id })
+    return NextResponse.json({ error: 'Clinic not resolved' }, { status: 404 })
   }
 
   const customer = await lookupByPhone(clinic.id, phone_number)

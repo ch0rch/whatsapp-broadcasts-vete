@@ -14,6 +14,8 @@ export default withSentryConfig(nextConfig, {
     disable: !process.env.SENTRY_AUTH_TOKEN,
   },
   // Automatically tree-shake Sentry logger statements in production
+  // Note: disableLogger is deprecated in Sentry 10.x for Turbopack.
+  // The equivalent for webpack is webpack.treeshake.removeDebugLogging (no Turbopack support yet).
   disableLogger: true,
   // Tunnel Sentry requests through our domain to avoid ad-blockers
   // Disabled for MVP — re-enable if significant event loss observed

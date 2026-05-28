@@ -72,8 +72,10 @@ export async function POST(request: NextRequest) {
   const rawBody = await request.text()
 
   // 2. HMAC verification against X-Webhook-Signature (raw body bytes)
+  // Project-level webhooks use a separate secret from phone-number webhooks because
+  // Kapso auto-generates the phone-number webhook secret and does not let it be set.
   const signature = request.headers.get('x-webhook-signature')
-  const webhookSecret = env.KAPSO_WEBHOOK_SECRET as string
+  const webhookSecret = env.KAPSO_WEBHOOK_SECRET_PROJECT as string
 
   const valid = await verifyHmacSignature(rawBody, signature, webhookSecret)
   if (!valid) {

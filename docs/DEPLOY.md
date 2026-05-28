@@ -17,7 +17,8 @@ Copy `.env.local.example` to `.env.local` for local dev, but set production valu
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Supabase → Project → Settings → API | Vercel env (server-only, never client) |
 | `KAPSO_API_KEY` | Yes | Kapso dashboard → Settings → API Keys | Vercel env |
 | `KAPSO_API_BASE_URL` | Yes | `https://api.kapso.ai` (default) | Vercel env |
-| `KAPSO_WEBHOOK_SECRET` | Yes | Generate via `openssl rand -hex 32`; configure same value in Kapso webhook settings | Vercel env + Kapso dashboard |
+| `KAPSO_WEBHOOK_SECRET_PROJECT` | Yes | Set this value when creating the Project webhook in Kapso (the field is optional/editable). Use `openssl rand -hex 32` to generate it. | Vercel env + Kapso Project webhook config |
+| `KAPSO_WEBHOOK_SECRET_PHONE_NUMBER` | Yes | Kapso auto-generates this on Phone-number webhooks and the field is **not editable**. Reveal the secret in the dashboard and paste it here. | Vercel env (mirror of the value Kapso shows) |
 | `KAPSO_AGENT_TOOL_SECRET` | Yes | Generate via `openssl rand -hex 32`; configure same value in Kapso workflow agent-tool header | Vercel env + Kapso workflow config |
 | `BUSINESS_ACCOUNT_ID` | Yes | Meta Business Manager → WhatsApp → WABA ID | Vercel env |
 | `PHONE_NUMBER_ID` | Yes | Meta Business Manager → WhatsApp → Phone Number ID | Vercel env |

@@ -80,6 +80,40 @@ async function kapsoFetch<T = unknown, B = unknown>(
   return response.json();
 }
 
+// ─── Inbox embed types ───────────────────────────────────────────────────────
+
+type InboxEmbedCreateRequest = {
+  inbox_embed: {
+    name: string
+    scope_type: 'project' | 'customer' | 'phone_number'
+    scope_id?: string
+    allowed_origins?: string[]
+    default_mode?: string
+  }
+}
+
+type InboxEmbedResponse = {
+  inbox_embed: {
+    id: string
+    name: string
+    scope_type: string
+    scope_id: string | null
+    embed_url: string
+    token: string
+    allowed_origins: string[]
+    created_at: string
+  }
+}
+
+// ─── Workflow execution resume type ──────────────────────────────────────────
+
+type WorkflowExecutionResumeResponse = {
+  workflow_execution: {
+    id: string
+    status: string
+  }
+}
+
 export const kapsoApi = {
   broadcasts: {
     create: (data: CreateBroadcastRequest) =>
@@ -114,6 +148,33 @@ export const kapsoApi = {
       kapsoFetch<ApiResponse<Template>>(
         `/${businessAccountId}/message_templates/${templateId}`,
         { apiBase: 'meta' }
+      ),
+  },
+  inboxEmbeds: {
+    /**
+     * Create a scoped inbox embed and return the embed_url + token.
+     * Scope to a phone_number to show all conversations for that number.
+     * The embed_url is a one-time token — store it or use it immediately in the iframe.
+     */
+    create: (data: InboxEmbedCreateRequest) =>
+      kapsoFetch<InboxEmbedResponse, InboxEmbedCreateRequest>('/inbox_embeds', {
+        method: 'POST',
+        body: data,
+      }),
+  },
+  workflows: {
+    /**
+     * Resume a paused workflow execution (e.g., after a human handoff).
+     * Uses the Platform API endpoint: POST /workflow_executions/:id/resume
+     *
+     * Note: If no resume endpoint is available for the execution state,
+     * the Kapso API returns 422. In that case, the next inbound message
+     * from the customer will trigger a fresh workflow execution automatically.
+     */
+    resumeExecution: (executionId: string) =>
+      kapsoFetch<WorkflowExecutionResumeResponse>(
+        `/workflow_executions/${executionId}/resume`,
+        { method: 'POST' },
       ),
   },
 };

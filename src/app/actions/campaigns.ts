@@ -62,7 +62,7 @@ export async function createDraftCampaign(
 // ─── hydrateCampaign ─────────────────────────────────────────────────────────
 
 export type HydrateResult =
-  | { ok: true; totalRecipients: number }
+  | { ok: true; totalRecipients: number; kapsoBroadcastId: string }
   | { ok: false; error: string; code?: string; limit?: number; used?: number }
 
 export async function hydrateCampaign(campaignId: string): Promise<HydrateResult> {
@@ -105,7 +105,11 @@ export async function hydrateCampaign(campaignId: string): Promise<HydrateResult
       return { ok: false, error: (error as { message?: string }).message ?? 'Error interno' }
     }
 
-    return { ok: true, totalRecipients: result.totalRecipients }
+    return {
+      ok: true,
+      totalRecipients: result.totalRecipients,
+      kapsoBroadcastId: result.kapsoBroadcastId,
+    }
   } catch (err) {
     return {
       ok: false,

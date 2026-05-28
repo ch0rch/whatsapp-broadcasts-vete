@@ -71,6 +71,7 @@ export function CampaignWizard({ templates, segments, defaultSegmentId }: Props)
 
   // Step 3/4: campaign lifecycle
   const [campaignId, setCampaignId] = useState<string | null>(null)
+  const [kapsoBroadcastId, setKapsoBroadcastId] = useState<string | null>(null)
   const [totalRecipients, setTotalRecipients] = useState<number | null>(null)
   const [hydrateError, setHydrateError] = useState<string | null>(null)
   const [sentCount, setSentCount] = useState<number | null>(null)
@@ -95,15 +96,18 @@ export function CampaignWizard({ templates, segments, defaultSegmentId }: Props)
 
   // Poll kapso broadcast status after send
   useEffect(() => {
-    if (!polling || !campaignId) return
+    if (!polling || !kapsoBroadcastId) return
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/broadcasts/${campaignId}/status`)
+        const res = await fetch(`/api/broadcasts/${kapsoBroadcastId}`)
         if (res.ok) {
           const data = await res.json()
-          setKapsoStatus(data.status)
-          if (data.status === 'completed' || data.status === 'failed') {
-            setPolling(false)
+          const status = data?.data?.status ?? data?.status
+          if (status) {
+            setKapsoStatus(status)
+            if (status === 'completed' || status === 'failed') {
+              setPolling(false)
+            }
           }
         }
       } catch {
@@ -111,7 +115,7 @@ export function CampaignWizard({ templates, segments, defaultSegmentId }: Props)
       }
     }, 5000)
     return () => clearInterval(interval)
-  }, [polling, campaignId])
+  }, [polling, kapsoBroadcastId])
 
   // ─── Step navigation ────────────────────────────────────────────────────────
 
@@ -160,6 +164,7 @@ export function CampaignWizard({ templates, segments, defaultSegmentId }: Props)
           toast.error(hydrateResult.error)
         } else {
           setTotalRecipients(hydrateResult.totalRecipients)
+          setKapsoBroadcastId(hydrateResult.kapsoBroadcastId)
           setHydrateError(null)
         }
       })
@@ -501,6 +506,7 @@ export function CampaignWizard({ templates, segments, defaultSegmentId }: Props)
                   setCampaignName('')
                   setPilot(true)
                   setCampaignId(null)
+                  setKapsoBroadcastId(null)
                   setTotalRecipients(null)
                   setHydrateError(null)
                   setSentCount(null)

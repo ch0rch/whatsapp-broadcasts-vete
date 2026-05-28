@@ -91,8 +91,8 @@ workflow.addNode(
         method: 'POST',
         headers: AGENT_TOOL_HEADERS,
         bodyTemplate: {
-          phone_number: '{{context.channel.from}}',
-          phone_number_id: '{{context.channel.phone_number_id}}',
+          phone_number: '{{context.phone_number}}',
+          phone_number_id: '{{system.whatsapp_config.phone_number_id}}',
         },
       },
       {
@@ -106,8 +106,8 @@ workflow.addNode(
         method: 'POST',
         headers: AGENT_TOOL_HEADERS,
         bodyTemplate: {
-          phone_number: '{{context.channel.from}}',
-          phone_number_id: '{{context.channel.phone_number_id}}',
+          phone_number: '{{context.phone_number}}',
+          phone_number_id: '{{system.whatsapp_config.phone_number_id}}',
           name: '{{vars.customer_name}}',
           email: '{{vars.customer_email}}',
           notes: '{{vars.customer_notes}}',
@@ -124,8 +124,8 @@ workflow.addNode(
         method: 'POST',
         headers: AGENT_TOOL_HEADERS,
         bodyTemplate: {
-          phone_number: '{{context.channel.from}}',
-          phone_number_id: '{{context.channel.phone_number_id}}',
+          phone_number: '{{context.phone_number}}',
+          phone_number_id: '{{system.whatsapp_config.phone_number_id}}',
           name: '{{vars.pet_name}}',
           species: '{{vars.pet_species}}',
           breed: '{{vars.pet_breed}}',
@@ -144,8 +144,8 @@ workflow.addNode(
         method: 'POST',
         headers: AGENT_TOOL_HEADERS,
         bodyTemplate: {
-          phone_number: '{{context.channel.from}}',
-          phone_number_id: '{{context.channel.phone_number_id}}',
+          phone_number: '{{context.phone_number}}',
+          phone_number_id: '{{system.whatsapp_config.phone_number_id}}',
           reason: 'customer_request',
         },
       },
@@ -158,8 +158,8 @@ workflow.addNode(
         method: 'POST',
         headers: AGENT_TOOL_HEADERS,
         bodyTemplate: {
-          phone_number: '{{context.channel.from}}',
-          phone_number_id: '{{context.channel.phone_number_id}}',
+          phone_number: '{{context.phone_number}}',
+          phone_number_id: '{{system.whatsapp_config.phone_number_id}}',
         },
       },
     ],

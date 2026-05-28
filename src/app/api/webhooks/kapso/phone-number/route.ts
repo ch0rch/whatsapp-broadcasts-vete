@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
   // 2. HMAC verification against X-Webhook-Signature (raw body bytes)
   const signature = request.headers.get('x-webhook-signature')
-  const webhookSecret = env.KAPSO_WEBHOOK_SECRET
+  const webhookSecret = env.KAPSO_WEBHOOK_SECRET as string
 
   const valid = await verifyHmacSignature(rawBody, signature, webhookSecret)
   if (!valid) {

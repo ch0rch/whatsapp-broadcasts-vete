@@ -16,6 +16,23 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { lookupByPhone } from '@/server/customers/repo'
 import { env } from '@/env'
 
+/**
+ * Compute pet age in whole years from a birth_date string (ISO date).
+ * Returns null if birth_date is null or unparseable.
+ */
+function computeAgeInYears(birthDate: string | null): number | null {
+  if (!birthDate) return null
+  const birth = new Date(birthDate)
+  if (isNaN(birth.getTime())) return null
+  const now = new Date()
+  let age = now.getFullYear() - birth.getFullYear()
+  const hasHadBirthdayThisYear =
+    now.getMonth() > birth.getMonth() ||
+    (now.getMonth() === birth.getMonth() && now.getDate() >= birth.getDate())
+  if (!hasHadBirthdayThisYear) age -= 1
+  return age < 0 ? null : age
+}
+
 export async function POST(request: NextRequest) {
   const rawBody = await request.text()
   const signature = request.headers.get('x-kapso-signature')
@@ -69,6 +86,7 @@ export async function POST(request: NextRequest) {
     pets: (customer.pets ?? []).map((p) => ({
       name: p.name,
       species: p.species,
+      age: computeAgeInYears(p.birth_date),
       next_vaccine_due: p.next_vaccine_due ?? null,
     })),
   })

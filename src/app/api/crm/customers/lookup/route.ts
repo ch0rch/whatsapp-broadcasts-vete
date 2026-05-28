@@ -42,9 +42,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const rawBody = await request.text()
+  console.log('[lookup_customer] rx', { event: 'rx', body: rawBody })
+
   let body: { phone_number: string; phone_number_id?: string }
   try {
-    body = await request.json()
+    body = JSON.parse(rawBody)
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
@@ -52,11 +55,13 @@ export async function POST(request: NextRequest) {
   const { phone_number, phone_number_id } = body
 
   if (!phone_number) {
+    console.warn('[lookup_customer] reject: missing phone_number', { event: 'reject', reason: 'phone_number_missing', body })
     return NextResponse.json({ error: 'phone_number is required' }, { status: 400 })
   }
 
   // Resolve clinic_id from whatsapp_phone_number_id
   if (!phone_number_id) {
+    console.warn('[lookup_customer] reject: missing phone_number_id', { event: 'reject', reason: 'phone_number_id_missing', body })
     return NextResponse.json({ error: 'phone_number_id is required' }, { status: 400 })
   }
 

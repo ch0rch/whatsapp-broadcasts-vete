@@ -27,6 +27,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const rawBody = await request.text()
+  console.log('[upsert_customer] rx', { event: 'rx', body: rawBody })
+
   let body: {
     phone_number: string
     phone_number_id: string
@@ -35,7 +38,7 @@ export async function POST(request: NextRequest) {
     notes?: string
   }
   try {
-    body = await request.json()
+    body = JSON.parse(rawBody)
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
@@ -43,6 +46,7 @@ export async function POST(request: NextRequest) {
   const { phone_number, phone_number_id, name, email, notes } = body
 
   if (!phone_number || !phone_number_id) {
+    console.warn('[upsert_customer] reject: missing phone fields', { event: 'reject', reason: 'phone_missing', body })
     return NextResponse.json(
       { error: 'phone_number and phone_number_id are required' },
       { status: 400 },

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   // 1. Read raw body ONCE — required for HMAC verification
   const rawBody = await request.text()
   const signature = request.headers.get('x-kapso-signature')
-  const agentSecret = env.KAPSO_AGENT_TOOL_SECRET
+  const agentSecret = env.KAPSO_AGENT_TOOL_SECRET as string
 
   // 2. Verify HMAC signature
   const valid = await verifyHmacSignature(rawBody, signature, agentSecret)

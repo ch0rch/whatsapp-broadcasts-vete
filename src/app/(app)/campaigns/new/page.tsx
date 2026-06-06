@@ -28,9 +28,17 @@ export default async function NewCampaignPage({
     try {
       const res = await kapsoApi.templates.list(businessAccountId, { status: 'APPROVED' })
       templates = res.data ?? []
-    } catch {
-      // Non-fatal: wizard will show empty state
+    } catch (err) {
+      // Never swallow silently: a previous empty catch hid a misconfigured
+      // BUSINESS_ACCOUNT_ID, leaving the wizard empty with no trace in logs.
+      console.error('[campaigns/new] templates fetch failed', {
+        message: err instanceof Error ? err.message : String(err),
+      })
     }
+  } else {
+    console.error(
+      '[campaigns/new] BUSINESS_ACCOUNT_ID is not set — template selector will be empty',
+    )
   }
 
   try {

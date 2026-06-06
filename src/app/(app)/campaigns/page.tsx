@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { listCampaigns } from '@/server/campaigns/repo'
+import { reconcileCampaigns } from '@/server/campaigns/reconcile'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -36,7 +37,7 @@ const STATUS_VARIANTS: Record<
 export default async function CampaignsPage() {
   let campaigns: Awaited<ReturnType<typeof listCampaigns>> = []
   try {
-    campaigns = await listCampaigns()
+    campaigns = await reconcileCampaigns(await listCampaigns())
   } catch {
     // Empty
   }

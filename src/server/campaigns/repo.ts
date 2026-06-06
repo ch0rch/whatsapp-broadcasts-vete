@@ -120,6 +120,27 @@ export async function markCampaignFailed(id: string): Promise<void> {
     .eq('id', id)
 }
 
+/**
+ * Persist a terminal broadcast status + delivery counts from Kapso.
+ * Kapso has no broadcast-completion webhook, so reconciliation is the only
+ * path that moves a campaign out of 'sending'. See server/campaigns/reconcile.ts.
+ */
+export async function syncCampaignFromBroadcast(
+  id: string,
+  fields: {
+    status: 'completed' | 'failed'
+    sent_count: number
+    delivered_count: number
+    read_count: number
+    responded_count: number
+    failed_count: number
+  },
+): Promise<void> {
+  const admin = createAdminClient()
+  const { error } = await admin.from('campaigns').update(fields).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
 /** Increment clinic's messages_used_this_month counter. */
 export async function incrementClinicUsage(
   clinicId: string,

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getCampaign } from '@/server/campaigns/repo'
+import { reconcileCampaign } from '@/server/campaigns/reconcile'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -38,8 +39,9 @@ export default async function CampaignDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const campaign = await getCampaign(id)
-  if (!campaign) notFound()
+  const found = await getCampaign(id)
+  if (!found) notFound()
+  const campaign = await reconcileCampaign(found)
 
   return (
     <div className="space-y-6">
